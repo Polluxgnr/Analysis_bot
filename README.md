@@ -103,11 +103,3 @@ sudo docker-compose up -d --build
 * `!add [TICKER]` : Ajoute un actif à la Watchlist du scanner autonome.
 * `!remove [TICKER]` : Retire un actif de la Watchlist.
 * `!list` : Affiche la Watchlist actuelle.
-
-```
-
-Ce `README` couronne parfaitement tout le travail technique que tu as accompli. 
-
-Souhaites-tu que l'on procède à ce rapide bilan de santé de ton serveur (utilisation CPU/RAM avec la commande `htop` ou `docker stats`) pour clore définitivement l'aspect technique du projet ?
-
-```
