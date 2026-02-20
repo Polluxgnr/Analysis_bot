@@ -1,0 +1,10 @@
+version: '3.8'
+services:
+  hedge-bot:
+    build: .
+    container_name: hedge_fund_bot
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      - .:/app
