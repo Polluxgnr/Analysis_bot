@@ -8,7 +8,7 @@ import asyncio
 import json
 import os
 import datetime
-from mistralai import Mistral
+from google import genai
 import re
 from collections import deque
 from dotenv import load_dotenv
@@ -16,13 +16,15 @@ from dotenv import load_dotenv
 # --- SÉCURITÉ & CONFIGURATION ---
 load_dotenv()
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
-MISTRAL_API_KEY = os.getenv("MISTRAL_API_KEY")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 ALERT_CHANNEL_ID = int(os.getenv("ALERT_CHANNEL_ID", 0))
 
 intents = discord.Intents.default()
 intents.message_content = True
 bot = commands.Bot(command_prefix="!", intents=intents)
-mistral_client = Mistral(api_key=MISTRAL_API_KEY)
+
+# Configuration de la NOUVELLE API Gemini
+gemini_client = genai.Client(api_key=GEMINI_API_KEY)
 
 # --- MÉMOIRE & WATCHLIST ---
 CHAT_HISTORY = {} 
@@ -38,10 +40,7 @@ def save_watchlist(watchlist):
     with open(WATCHLIST_FILE, "w") as f:
         json.dump(watchlist, f)
 
-# Dictionnaire massif : Gère les noms d'entreprises complets
-# Dictionnaire massif : Gère les noms d'entreprises complets, les ETFs, les cryptos et les fautes de frappe courantes
 COMMON_TYPOS = {
-    # --- BIG TECH & MEGA CAPS ---
     "APPL": "AAPL", "APPLE": "AAPL", 
     "FB": "META", "FACEBOOK": "META", 
     "TWTR": "X", "TWITTER": "X", 
@@ -54,8 +53,6 @@ COMMON_TYPOS = {
     "AMD": "AMD", "ADVANCED MICRO DEVICES": "AMD",
     "INTEL": "INTC",
     "TSMC": "TSM", "TAIWAN SEMI": "TSM",
-    
-    # --- POPULAR STOCKS & MEMES ---
     "DISNEY": "DIS", "WALT DISNEY": "DIS",
     "PALANTIR": "PLTR",
     "COINBASE": "COIN",
@@ -66,8 +63,6 @@ COMMON_TYPOS = {
     "ALIBABA": "BABA", "BABA": "BABA",
     "NIO": "NIO", "RIVIAN": "RIVN", "LUCID": "LCID",
     "BRK.B": "BRK-B", "BRKB": "BRK-B", "BERKSHIRE": "BRK-B",
-    
-    # --- CRYPTOCURRENCIES (Yahoo Finance format requires -USD) ---
     "BTC": "BTC-USD", "BITCOIN": "BTC-USD", 
     "ETH": "ETH-USD", "ETHEREUM": "ETH-USD", 
     "XRP": "XRP-USD", "RIPPLE": "XRP-USD",
@@ -81,8 +76,6 @@ COMMON_TYPOS = {
     "MATIC": "MATIC-USD", "POL": "MATIC-USD", "POLYGON": "MATIC-USD",
     "LTC": "LTC-USD", "LITECOIN": "LTC-USD",
     "BNB": "BNB-USD", "BINANCE": "BNB-USD",
-    
-    # --- INDICES & ETFs ---
     "SPX": "^GSPC", "S&P500": "SPY", "S&P": "SPY", 
     "NDX": "^NDX", "NASDAQ": "QQQ", 
     "VIX": "^VIX", "VOLATILITY": "^VIX",
@@ -101,7 +94,7 @@ def create_ascii_bar(value, max_val=100, length=10):
 
 def get_market_context():
     try:
-        spy = yf.Ticker("SPY").history(period="1y") # CORRECTION : 1y au lieu de 6mo
+        spy = yf.Ticker("SPY").history(period="1y")
         vix = yf.Ticker("^VIX").history(period="1d")
         if spy.empty or vix.empty: return "Unknown"
         trend = "BULLISH 🟢" if spy['Close'].iloc[-1] > spy['Close'].rolling(200).mean().iloc[-1] else "BEARISH 🔴"
@@ -232,7 +225,7 @@ async def show_watchlist(ctx):
 
 @bot.command(name="forcescan")
 async def force_scan(ctx):
-    await ctx.send("🛠️ **Scanner d'Anomalies V21...**")
+    await ctx.send("🛠️ **Scanner d'Anomalies...**")
     await daily_scanner()
 
 # --- SCANNER AUTONOME ---
@@ -273,7 +266,7 @@ async def daily_scanner():
     
     if anomalies:
         report = "\n".join(anomalies)
-        embed = discord.Embed(title="🚨 Institutional Radar (V21)", description=report, color=0xFFD700)
+        embed = discord.Embed(title="🚨 Institutional Radar", description=report, color=0xFFD700)
         await channel.send(embed=embed)
         if ALERT_CHANNEL_ID not in CHAT_HISTORY: CHAT_HISTORY[ALERT_CHANNEL_ID] = deque(maxlen=5)
         CHAT_HISTORY[ALERT_CHANNEL_ID].append(f"[SCANNER]: {report}")
@@ -282,35 +275,36 @@ async def daily_scanner():
 async def before_daily_scanner():
     await bot.wait_until_ready()
 
-# --- CHATBOT ---
+# --- CHATBOT GEMINI ---
 async def handle_conversation(message):
     history = CHAT_HISTORY.get(message.channel.id, [])
     context = "Aucune data." if not history else "\n".join(history)
     
     async with message.channel.typing():
         prompt = f"""
-        Tu es le "Quant Council", trader senior. Contexte : {context}
-        Client : "{message.content}"
+        Tu es le "Quant Council", trader senior. Contexte de notre session : {context}
+        Question du client : "{message.content}"
         
         RÈGLES ABSOLUES :
-        1. SOIS BREF. 4 phrases MAX. Zéro blabla.
-        2. Si l'actif n'est pas dans le contexte, dis EXACTEMENT: "Aucune data en cache. Tape le symbole (ex: MSFT) pour lancer le terminal."
+        1. SOIS BREF. 4 phrases MAX. Zéro blabla. Va droit au but.
+        2. Si l'actif n'est pas dans le contexte, dis EXACTEMENT: "Aucune data en cache. Tape le symbole (ex: MSFT) pour lancer le terminal." Ne justifie pas.
         3. LONG OU CASH SEULEMENT. INTERDICTION STRICTE DE PROPOSER DU SHORT, DES PUTS, OU DE LA VENTE A DECOUVERT. Si la situation est mauvaise, dis "RESTER EN CASH" ou "EVITER".
         """
         try:
-            chat_response = await asyncio.to_thread(lambda: mistral_client.chat.complete(model="mistral-tiny", messages=[{"role": "user", "content": prompt}]))
-            reply_text = chat_response.choices[0].message.content
+            response = await asyncio.to_thread(gemini_client.models.generate_content, model='gemini-2.5-flash', contents=prompt)
+            reply_text = response.text
             if len(reply_text) > 800: reply_text = reply_text[:800] + "...\n*(Réponse tronquée pour concision)*"
-            await message.reply(reply_text)
-        except:
-            await message.reply("❌ API Surchargée.")
+            await message.reply(reply_text.strip())
+        except Exception as e:
+            print(f"Erreur Gemini Chat: {e}", flush=True)
+            await message.reply("❌ Erreur API Gemini.")
 
 async def run_analysis(message, ticker_input):
     ticker = ticker_input.upper().strip()
     if ticker in COMMON_TYPOS: ticker = COMMON_TYPOS[ticker]
         
     await message.add_reaction("⚡")
-    status_msg = await message.channel.send(f"🔄 **Terminal V21 : {ticker}...**")
+    status_msg = await message.channel.send(f"🔄 **Terminal : {ticker}...**")
 
     try:
         def fetch_data():
@@ -344,12 +338,12 @@ async def run_analysis(message, ticker_input):
         prompt = f"""
         Role: Quant Desk Manager. Asset: {final_ticker} ({metrics['QuoteType']}).
         Macro: {macro} | Price: ${metrics['Price']:.2f} | RSI: {metrics['RSI']:.1f} | Drawdown: {metrics['MaxDD']:.1f}%
-        Squeeze: {metrics['Squeeze']} | P/C Ratio: {pc_ratio} | Insider: {insider} | Earnings: {earnings}
+        Squeeze: {metrics['Squeeze']} | P/C Ratio: {pc_ratio} (Note: <0.7 is bullish/optimistic, >1.0 is bearish/fear) | Insider: {insider} | Earnings: {earnings}
         Desc: {desc}
         
         RULES (CRITICAL):
         1. NO SHORT SELLING. NO PUTS. LONG OR CASH ONLY. If bearish, you MUST say "AVOID" or "STAY IN CASH".
-        2. Format exactly as requested. DO NOT USE MARKDOWN (NO ASTERISKS) for headers.
+        2. Format exactly as requested below. DO NOT USE MARKDOWN (NO ASTERISKS) for headers.
 
         OUTPUT FORMAT:
         [SENTIMENT]: 0-100
@@ -361,8 +355,8 @@ async def run_analysis(message, ticker_input):
         [VERDICT]: Action (Buy/Hold/Avoid/Cash), Target, Stop-Loss.
         """
         
-        chat_response = await asyncio.to_thread(lambda: mistral_client.chat.complete(model="mistral-tiny", messages=[{"role": "user", "content": prompt}]))
-        ai_full = chat_response.choices[0].message.content
+        response = await asyncio.to_thread(gemini_client.models.generate_content, model='gemini-2.5-flash', contents=prompt)
+        ai_full = response.text
         
         # Parsing Anti-Casse
         sent_val, pol_str, ai_profile = 50, "5", "Profile indisponible."
@@ -383,7 +377,6 @@ async def run_analysis(message, ticker_input):
         # Update Memory 
         cid = message.channel.id
         if cid not in CHAT_HISTORY: CHAT_HISTORY[cid] = deque(maxlen=5)
-        # On sauvegarde le résumé plutôt que de couper le texte au hasard, pour une meilleure mémoire
         CHAT_HISTORY[cid].append(f"[{final_ticker}]: P=${metrics['Price']:.2f}, RSI={metrics['RSI']:.1f}, Info: {ai_profile[:100]}...")
 
         # Embed UI
@@ -410,7 +403,7 @@ async def run_analysis(message, ticker_input):
         embed.add_field(name="📊 Quant Scores", value=f"`SENTIMENT:` {create_ascii_bar(sent_val)} {sent_val} | `POL RISK:` {pol_str}/10", inline=False)
 
         embed_memo = discord.Embed(color=0x5865F2, description=ai_clean)
-        embed_memo.set_footer(text="Quant Council • Masterclass V21 Final")
+        embed_memo.set_footer(text="Pollux bloomberg terminal (Powered by Gemini)")
 
         await status_msg.delete()
         await message.channel.send(file=chart, embed=embed)
@@ -421,19 +414,22 @@ async def run_analysis(message, ticker_input):
         print(f"ERROR: {e}", flush=True)
 
 @bot.event
-async def on_ready():
-    print(f"✅ V21 FINAL Online: {bot.user}")
-    daily_scanner.start()
-
-@bot.event
 async def on_message(msg):
     if msg.author == bot.user: return
-    if msg.content.startswith('!'): return await bot.process_commands(msg)
+    if msg.author.bot: return
+
+    if msg.content.startswith('!'): 
+        return await bot.process_commands(msg)
     
     words = msg.content.strip().split()
     if len(words) == 1 and re.match(r'^[A-Z0-9-.]{2,10}$', msg.content.upper()) and msg.content.upper() not in ["WHY", "HOW", "WHAT", "TEST"]:
         await run_analysis(msg, msg.content)
     else:
         await handle_conversation(msg)
+
+@bot.event
+async def on_ready():
+    print(f"✅ V23 GEMINI Online: {bot.user}")
+    daily_scanner.start()
 
 bot.run(DISCORD_TOKEN)
