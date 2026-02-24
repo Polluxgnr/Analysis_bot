@@ -13,14 +13,14 @@ Built around a strict **cash-only** mandate, the AI engine is hardcoded to rejec
 * **Smart Money Tracking:** Monitors institutional order flows, including Insider Trading (Buying/Selling), Options Put/Call Ratios, and abnormal "Whale" volume Z-Scores.
 * **Advanced Risk Metrics:** Calculates Volatility Squeeze (Bollinger Band compression) for breakout detection and 1-Year Maximum Drawdown (MAX DD) to assess real downside risk.
 * **Autonomous Daily Scanner:** A built-in cron job runs every 24 hours to scan a custom Watchlist, alerting the server to extreme market anomalies (e.g., RSI < 30, Whale Volume > 2.5).
-* **Contextual AI Chatbot:** Powered by Mistral AI, the bot remembers the last 5 terminal scans or alerts. You can converse naturally with the bot about recently scanned assets. It features strict anti-hallucination protocols: if an asset is not in its short-term memory, it will demand a fresh scan rather than inventing data.
+* **Contextual AI Chatbot:** Powered by Google Gemini (2.5 Flash), the bot remembers the last 5 terminal scans or alerts. You can converse naturally with the bot about recently scanned assets. It features strict anti-hallucination protocols: if an asset is not in its short-term memory, it will demand a fresh scan rather than inventing data.
 
 ## Technical Stack
-* **Python 3.10+**
+* **Python 3.11+**
 * **Discord.py:** For Discord API integration.
 * **yfinance & pandas:** For real-time market data fetching and quantitative calculations.
 * **mplfinance:** For generating high-resolution technical charts.
-* **Mistral AI (`mistral-tiny`):** For natural language processing and institutional memo generation.
+* **Google Gemini (`gemini-2.5-flash`):** For lightning-fast natural language processing and institutional memo generation via the `google-genai` SDK.
 * **Docker & Docker Compose:** For robust, 24/7 containerized deployment.
 
 ## Installation & Deployment
@@ -29,7 +29,7 @@ Built around a strict **cash-only** mandate, the AI engine is hardcoded to rejec
 2. **Create a `.env` file** in the root directory and add your API keys:
    ```env
    DISCORD_TOKEN=your_discord_bot_token_here
-   MISTRAL_API_KEY=your_mistral_api_key_here
+   GEMINI_API_KEY=your_gemini_api_key_here
    ALERT_CHANNEL_ID=your_discord_channel_id_for_scanner_alerts
 
 ```
@@ -39,6 +39,9 @@ Built around a strict **cash-only** mandate, the AI engine is hardcoded to rejec
 sudo docker-compose up -d --build
 
 ```
+
+
+
 ## Command Reference
 
 * `[TICKER]` : Generates the Data Terminal (e.g., `MSFT`, `TSLA`). Autocorrects common typos.
@@ -51,7 +54,7 @@ sudo docker-compose up -d --build
 
 ---
 
-# Bot Discord Institutionnel 
+# Bot Discord Institutionnel
 
 Un bot Discord conçu pour agir comme un analyste quantitatif de Hedge Fund. Il filtre le bruit du marché, traque la "Smart Money" et fournit des analyses basées sur les données directement sur votre serveur Discord.
 
@@ -65,15 +68,15 @@ Construit autour d'un mandat strictement **Cash-Only**, le moteur de l'IA est pr
 * **Traçage de la "Smart Money" :** Surveille les flux institutionnels, incluant les délits d'initiés légaux (Achats/Ventes des dirigeants), les ratios Put/Call sur les options, et les anomalies de volume des "Baleines" (Z-Score).
 * **Métriques de Risque Avancées :** Calcule la compression de volatilité (Squeeze des bandes de Bollinger) pour détecter les cassures imminentes, ainsi que le Drawdown Maximal (MAX DD) sur 1 an pour évaluer le risque de perte réel.
 * **Scanner Autonome Quotidien :** Une tâche de fond (cron job) s'exécute toutes les 24h pour scanner une Watchlist personnalisée, alertant le serveur des anomalies extrêmes du marché (ex: RSI < 30, Volume Baleine > 2.5).
-* **Chatbot IA Contextuel :** Propulsé par Mistral AI, le bot se souvient des 5 derniers scans ou alertes. Vous pouvez converser naturellement avec lui sur les actifs récemment analysés. Il intègre des protocoles anti-hallucination stricts : si un actif n'est pas dans sa mémoire à court terme, il exigera un nouveau scan plutôt que d'inventer des données.
+* **Chatbot IA Contextuel :** Propulsé par Google Gemini (2.5 Flash), le bot se souvient des 5 derniers scans ou alertes. Vous pouvez converser naturellement avec lui sur les actifs récemment analysés. Il intègre des protocoles anti-hallucination stricts : si un actif n'est pas dans sa mémoire à court terme, il exigera un nouveau scan plutôt que d'inventer des données.
 
 ## Stack Technique
 
-* **Python 3.10+**
+* **Python 3.11+**
 * **Discord.py :** Pour l'intégration de l'API Discord.
 * **yfinance & pandas :** Pour la récupération des données de marché en temps réel et les calculs quantitatifs.
 * **mplfinance :** Pour la génération de graphiques techniques haute résolution.
-* **Mistral AI (`mistral-tiny`) :** Pour le traitement du langage naturel et la rédaction des mémos institutionnels.
+* **Google Gemini (`gemini-2.5-flash`) :** Pour le traitement ultra-rapide du langage naturel et la rédaction des mémos institutionnels (via le SDK `google-genai`).
 * **Docker & Docker Compose :** Pour un déploiement conteneurisé robuste tournant 24h/24 et 7j/7.
 
 ## Installation & Déploiement
@@ -82,7 +85,7 @@ Construit autour d'un mandat strictement **Cash-Only**, le moteur de l'IA est pr
 2. **Créez un fichier `.env**` à la racine et ajoutez vos clés API :
 ```env
 DISCORD_TOKEN=votre_token_discord_ici
-MISTRAL_API_KEY=votre_cle_api_mistral_ici
+GEMINI_API_KEY=votre_cle_api_gemini_ici
 ALERT_CHANNEL_ID=id_du_salon_discord_pour_les_alertes
 
 ```
